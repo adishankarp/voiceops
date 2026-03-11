@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -16,14 +18,30 @@ app = FastAPI(title="VoiceOps API")
 def _ensure_storage_dirs() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# CORS: local dev origins + production origin(s) from env (comma-separated CORS_ALLOWED_ORIGINS)
+_DEV_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+]
+
+
+def _cors_origins() -> list[str]:
+    origins = list(_DEV_ORIGINS)
+    extra = os.environ.get("CORS_ALLOWED_ORIGINS", "").strip()
+    if extra:
+        for o in extra.split(","):
+            o = o.strip()
+            if o and o not in origins:
+                origins.append(o)
+    return origins
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:8080",
-        "http://127.0.0.1:8080",
-    ],
+    allow_origins=_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
