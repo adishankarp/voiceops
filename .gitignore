@@ -1,0 +1,44 @@
+# -----------------------------------------------------------------------------
+# VoiceOps — do not commit to GitHub
+# -----------------------------------------------------------------------------
+
+# PYTHON
+venv/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# NODE
+node_modules/
+dist/
+dist-ssr
+build/
+
+# SYSTEM
+.DS_Store
+Thumbs.db
+
+# PROJECT-SPECIFIC — local data and uploaded audio
+uploads/
+data/
+*.wav
+*.mp3
+*.m4a
+
+# Duplicate nested copy (if present)
+voiceops/backend/voiceops/
+
+# MODEL FILES — large weights
+*.pt
+*.bin
+*.safetensors
+
+# Cache
+.cache/
+*.egg-info/
+.eggs/
