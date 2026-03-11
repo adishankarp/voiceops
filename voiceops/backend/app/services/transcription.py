@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import logging
 import os
-import subprocess
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Protocol, TypedDict
+from pathlib import Path
+from typing import List, Optional, Protocol, TypedDict
 
-import whisper
+from openai import OpenAI
 
-from app.config import MODEL_NAMES
+from app.config import OPENAI_API_KEY
 from app.core.errors import ExternalServiceError
 from app.core.resilience import run_with_timeout
 
@@ -34,83 +34,69 @@ class TranscriptionProvider(Protocol):
     def transcribe(self, file_path: str) -> TranscriptionResult: ...
 
 
-def normalize_audio(input_path: str) -> str:
-    """
-    Normalize arbitrary audio to 16kHz mono WAV using ffmpeg.
-
-    Returns the path to the normalized file (input_path + ".wav").
-    """
-    output_path = f"{input_path}.wav"
-    cmd = [
-        "ffmpeg",
-        "-y",
-        "-i",
-        input_path,
-        "-ar",
-        "16000",
-        "-ac",
-        "1",
-        output_path,
-    ]
-
-    logger.info("Normalizing audio with ffmpeg input=%s output=%s", input_path, output_path)
-    try:
-        proc = subprocess.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            check=False,
-        )
-    except Exception as e:  # noqa: BLE001
-        logger.exception("ffmpeg invocation failed input=%s", input_path)
-        raise TranscriptionError(f"Audio normalization failed: {e}") from e
-
-    if proc.returncode != 0:
-        logger.error(
-            "ffmpeg failed input=%s returncode=%s stderr=%s",
-            input_path,
-            proc.returncode,
-            proc.stderr.strip(),
-        )
-        raise TranscriptionError(
-            f"Audio normalization failed with status {proc.returncode}: {proc.stderr or proc.stdout}"
-        )
-
-    logger.info("Audio normalization completed input=%s output=%s", input_path, output_path)
-    return output_path
+# OpenAI Whisper API model (API uses "whisper-1"; local model names like "base" are not used)
+WHISPER_API_MODEL = "whisper-1"
 
 
 @dataclass(frozen=True)
-class WhisperProvider:
-    model: Any
+class OpenAIWhisperProvider:
+    """Transcription via OpenAI Whisper API (no local Whisper/Torch)."""
+
+    client: OpenAI
 
     def transcribe(self, file_path: str) -> TranscriptionResult:
+        path = Path(file_path)
+        if not path.is_file():
+            raise TranscriptionError(f"Audio file not found: {file_path}")
+
         try:
-            normalized_path = normalize_audio(file_path)
-            result: Dict[str, Any] = self.model.transcribe(normalized_path)
+            with open(path, "rb") as f:
+                response = self.client.audio.transcriptions.create(
+                    model=WHISPER_API_MODEL,
+                    file=f,
+                    response_format="verbose_json",
+                    timestamp_granularities=["segment"],
+                )
         except Exception as e:  # noqa: BLE001
-            raise TranscriptionError(f"Whisper transcription failed: {e}") from e
+            logger.exception("OpenAI Whisper API failed file_path=%s", file_path)
+            raise TranscriptionError(f"Transcription failed: {e}") from e
 
-        text = str(result.get("text") or "").strip()
-        raw_segments = result.get("segments") or []
-
+        text = (getattr(response, "text", None) or "").strip()
         segments: List[TranscriptionSegment] = []
+
+        raw_segments = getattr(response, "segments", None) or []
         if isinstance(raw_segments, list):
             for seg in raw_segments:
-                if not isinstance(seg, dict):
-                    continue
-                start = float(seg.get("start", 0.0))
-                end = float(seg.get("end", 0.0))
-                seg_text = str(seg.get("text") or "").strip()
+                if isinstance(seg, dict):
+                    start = float(seg.get("start", 0.0))
+                    end = float(seg.get("end", 0.0))
+                    seg_text = str(seg.get("text") or "").strip()
+                else:
+                    if not hasattr(seg, "start") or not hasattr(seg, "end"):
+                        continue
+                    start = float(getattr(seg, "start", 0.0))
+                    end = float(getattr(seg, "end", 0.0))
+                    seg_text = (getattr(seg, "text", None) or "").strip()
                 segments.append({"start": start, "end": end, "text": seg_text})
 
         return {"text": text, "segments": segments}
 
 
-_MODEL = whisper.load_model(MODEL_NAMES["transcription"])
-_PROVIDER: TranscriptionProvider = WhisperProvider(model=_MODEL)
+def _client() -> OpenAI:
+    if not (OPENAI_API_KEY and OPENAI_API_KEY.strip()):
+        raise TranscriptionError("OPENAI_API_KEY is not set")
+    return OpenAI(api_key=OPENAI_API_KEY)
+
+
+_PROVIDER: Optional[TranscriptionProvider] = None
 _TRANSCRIPTION_TIMEOUT_SECONDS = float(os.environ.get("VOICEOPS_TRANSCRIPTION_TIMEOUT_SECONDS", "300"))
+
+
+def _get_provider() -> TranscriptionProvider:
+    global _PROVIDER
+    if _PROVIDER is None:
+        _PROVIDER = OpenAIWhisperProvider(client=_client())
+    return _PROVIDER
 
 
 def set_transcription_provider(provider: TranscriptionProvider) -> None:
@@ -123,14 +109,14 @@ def set_transcription_provider(provider: TranscriptionProvider) -> None:
 
 def transcribe_audio(file_path: str) -> TranscriptionResult:
     """
-    Transcribe an audio file using the configured provider.
+    Transcribe an audio file using the OpenAI Whisper API.
     """
     if not file_path or not isinstance(file_path, str):
         raise TranscriptionError("file_path must be a non-empty string")
     logger.info("Transcription started file_path=%s", file_path)
     try:
         result = run_with_timeout(
-            _PROVIDER.transcribe,
+            _get_provider().transcribe,
             file_path,
             timeout_seconds=_TRANSCRIPTION_TIMEOUT_SECONDS,
             timeout_message="Transcription timed out",

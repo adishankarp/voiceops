@@ -3,7 +3,5 @@ uvicorn
 python-multipart
 pydantic
 openai
-openai-whisper
 numpy
-torch
 python-dotenv

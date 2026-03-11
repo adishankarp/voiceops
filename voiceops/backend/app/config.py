@@ -13,7 +13,7 @@ load_dotenv()
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 _DEFAULT_MODEL_NAMES: Dict[str, str] = {
-    "transcription": "base",
+    "transcription": "whisper-1",
     "insights": "gpt-4o-mini",
     "chat": "gpt-4o-mini",
     "embeddings": "text-embedding-3-small",
@@ -41,6 +41,6 @@ def _parse_model_names(raw: str | None) -> Dict[str, str]:
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 MODEL_NAMES = _parse_model_names(os.environ.get("MODEL_NAMES"))
-# Production defaults: /data, /data/uploads when env not set (e.g. Docker/Railway)
+# Production defaults: /data, /data/uploads when env not set (e.g. Railway)
 UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR") or "/data/uploads")
 DATA_DIR = Path(os.environ.get("DATA_DIR") or "/data")

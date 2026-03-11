@@ -28,7 +28,7 @@ def log_decision(
     Record an AI decision at a given pipeline stage.
 
     - stage: e.g. 'transcription', 'insights', 'chat'
-    - model: e.g. 'whisper-base', 'gpt-4o-mini'
+    - model: e.g. 'whisper-1', 'gpt-4o-mini'
     - input_preview / output_preview: arbitrary strings, trimmed to 200 chars
     - conversation_id: if provided, append to that conversation's decision_log
     """

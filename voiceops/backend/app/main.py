@@ -11,7 +11,7 @@ configure_logging()
 
 app = FastAPI(title="VoiceOps API")
 
-# Production: ensure storage directories exist (e.g. /data, /data/uploads in Docker)
+# Production: ensure storage directories exist (e.g. /data, /data/uploads on Railway)
 @app.on_event("startup")
 def _ensure_storage_dirs() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
