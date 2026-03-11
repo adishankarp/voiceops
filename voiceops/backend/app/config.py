@@ -41,5 +41,6 @@ def _parse_model_names(raw: str | None) -> Dict[str, str]:
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 MODEL_NAMES = _parse_model_names(os.environ.get("MODEL_NAMES"))
-UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR") or (_BACKEND_ROOT / "uploads"))
-DATA_DIR = Path(os.environ.get("DATA_DIR") or (_BACKEND_ROOT / "data"))
+# Production defaults: /data, /data/uploads when env not set (e.g. Docker/Railway)
+UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR") or "/data/uploads")
+DATA_DIR = Path(os.environ.get("DATA_DIR") or "/data")

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import DATA_DIR, UPLOAD_DIR
 from app.core.http import install_exception_handlers
 from app.core.logging import configure_logging
 from app.routes import conversations, search, chat, patterns
@@ -9,6 +10,12 @@ from app.schemas import DebugInfoResponse, StatusResponse
 configure_logging()
 
 app = FastAPI(title="VoiceOps API")
+
+# Production: ensure storage directories exist (e.g. /data, /data/uploads in Docker)
+@app.on_event("startup")
+def _ensure_storage_dirs() -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
