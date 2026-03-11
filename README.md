@@ -7,8 +7,7 @@ VoiceOps is a full-stack AI system that transforms raw call recordings into stru
 
 The platform ingests conversation audio, automatically extracts insights such as customer pain points, objections, buying signals, and sentiment, and enables teams to search and query conversations using natural language.
 
-Live Demo
-https://voiceops-production.up.railway.app/
+
 
 ⸻
 
