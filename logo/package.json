@@ -1,0 +1,12 @@
+{
+  "name": "voiceops-logo",
+  "private": true,
+  "description": "Favicon generator for VoiceOps",
+  "scripts": {
+    "favicon": "node generate-favicon.js"
+  },
+  "dependencies": {
+    "png-to-ico": "^3.0.1",
+    "sharp": "^0.33.5"
+  }
+}

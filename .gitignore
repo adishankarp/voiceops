@@ -42,3 +42,6 @@ voiceops/backend/voiceops/
 .cache/
 *.egg-info/
 .eggs/
+
+# Generated logo assets (run generate-favicon.js to regenerate)
+logo/logo.png
